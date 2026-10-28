@@ -44,6 +44,7 @@ app.post('/api/send-otp', async (req, res) => {
     res.status(500).json({ success: false, message: 'Mail Error / Check App Password' });
   }
 });
+
 // 4. Verify OTP API
 app.post('/api/verify-otp', (req, res) => {
   const { email, otp } = req.body;
@@ -55,5 +56,13 @@ app.post('/api/verify-otp', (req, res) => {
   }
 });
 
+// Aakhri lines ko aise likh dena:
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running securely on port ${PORT}`));
+
+// Ye sirf tabhi listen karega jab tu local system par chalaayega
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => console.log(`Local Server running on port ${PORT}`));
+}
+
+// Ye Vercel ke liye zaroori hai:
+module.exports = app;
