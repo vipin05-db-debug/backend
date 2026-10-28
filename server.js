@@ -44,7 +44,6 @@ app.post('/api/send-otp', async (req, res) => {
     res.status(500).json({ success: false, message: 'Mail Error / Check App Password' });
   }
 });
-
 // 4. Verify OTP API
 app.post('/api/verify-otp', (req, res) => {
   const { email, otp } = req.body;
