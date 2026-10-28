@@ -1,54 +1,60 @@
+// server.js (Node.js Backend with Environment Variables & Fast Response)
 const express = require('express');
-const nodemailer = require('nodemailer');
 const cors = require('cors');
-require('dotenv').config();
+const nodemailer = require('nodemailer');
 
 const app = express();
-app.use(express.json());
 app.use(cors());
+app.use(express.json());
 
-const otpStore = new Map(); 
-
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
+// 1. Root Route for Cron-Job.org Ping (Prevents "Cannot GET /" and keeps server awake)
+app.get('/', (req, res) => {
+  res.status(200).send("Sri Hatwa OTP Server is Online and Running Fast!");
 });
 
+// 2. Nodemailer Transporter using Render Environment Variables (Secure)
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER, // Fetches from Render Environment Variables
+    pass: process.env.EMAIL_PASS  // Fetches from Render Environment Variables
+  }
+});
+
+let otpStorage = {}; // Temporary memory storage for OTPs
+
+// 3. Send OTP API
 app.post('/api/send-otp', async (req, res) => {
   const { email } = req.body;
-  if (!email) return res.status(400).json({ error: "Email required" });
+  if (!email) return res.status(400).json({ success: false, message: 'Email required' });
 
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  otpStore.set(email, { otp, expires: Date.now() + 5 * 60000 });
+  const otp = Math.floor(100000 + Math.random() * 900000).toString(); // Generate 6-digit OTP
+  otpStorage[email] = otp;
 
   try {
     await transporter.sendMail({
-      from: `"Sri Hatwa Security" <${process.env.EMAIL_USER}>`,
+      from: `"Sri Hatwa Gold Loans" <${process.env.EMAIL_USER}>`,
       to: email,
-      subject: "Your Master Security PIN OTP",
-      html: `<h2>App Authorization</h2><p>Your verification OTP is: <strong>${otp}</strong></p>`
+      subject: 'Your Security Master PIN OTP',
+      text: `Your Master PIN verification OTP is: ${otp}. Do not share this with anyone.`
     });
-    res.json({ success: true, message: "OTP Sent" });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to send email" });
+    res.status(200).json({ success: true, message: 'OTP Sent Successfully' });
+  } catch (error) {
+    console.error("Mail Error:", error);
+    res.status(500).json({ success: false, message: 'Mail Error / Check App Password' });
   }
 });
 
+// 4. Verify OTP API
 app.post('/api/verify-otp', (req, res) => {
   const { email, otp } = req.body;
-  const record = otpStore.get(email);
-
-  if (!record) return res.status(400).json({ error: "OTP expired or not requested" });
-  if (Date.now() > record.expires) {
-    otpStore.delete(email);
-    return res.status(400).json({ error: "OTP expired" });
+  if (otpStorage[email] && otpStorage[email] === otp) {
+    delete otpStorage[email]; // Clear OTP once verified
+    res.status(200).json({ success: true, message: 'OTP Verified Successfully' });
+  } else {
+    res.status(400).json({ success: false, message: 'Invalid or Expired OTP' });
   }
-  if (record.otp === otp) {
-    otpStore.delete(email);
-    return res.json({ success: true, message: "Verified successfully" });
-  }
-  res.status(400).json({ error: "Invalid OTP" });
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Secure Auth Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server running securely on port ${PORT}`));
